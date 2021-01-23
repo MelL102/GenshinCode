@@ -1,7 +1,16 @@
-# Module importieren
-import requests
-import csv
 from bs4 import BeautifulSoup
+from collections import OrderedDict
+import json
+import requests
+import pprint
+
+try:
+    d = json.load(open('promocodes.json','r'))
+    old_codes = [d[index][' EU '] for index, i in enumerate(d)]
+    #print(old_codes)
+except:
+    old_codes = []
+    print("Promocodes.json is missing! Either you deleted/moved it or you run this programm for the first time")
 
 source = requests.get('https://www.gensh.in/events/promotion-codes').text
 
@@ -9,43 +18,28 @@ soup = BeautifulSoup(source, 'lxml')
 
 table = soup.find('table')
 
-# print(table.prettify())
-table_body = table.find('tbody')
-#print(table_body)
-rows = table_body.find_all('tr')
-#print(rows)
-data = []
+headers = [heading.text for heading in table.find_all('th')]
 
-for row in rows:
-    cols = row.find_all('td')
-    data.append(cols)
+table_rows = [row for row in table.find_all('tr')]
 
-code = ""
+results = [{headers[index] : cell.text for index,cell in enumerate(row.find_all('td')) } for row in table_rows]
 
-file = open("promocodes.txt","a+")
-try:
-    old_promos = open("promocodes.txt","r")
-    content_list = old_promos.read().splitlines()
-except:
-    print("No old Promocodes where found \n")
-    content_list = []
+while {} in results:
+    results.remove({})
 
-count = 0
-new_codes = []
-for item in data:
-    code = item[2]
-    code = str(code)[5 : -6]
-    try:
-        b = content_list.index(code)
-        continue
-    except:
-        file.write(code+"\n")
-        count = count+1
-        new_codes.append(code)
+eu_codes = [results[index][' EU '] for index, i in enumerate(results)]
 
-if count > 0:
-    print(str(count)+" new codes that can be redeemed where found:\n")
-    for code in new_codes:
-        print(code+"\n")
-else:
+new_codes = [codes for codes in eu_codes if codes not in old_codes]
+
+if new_codes == []:
     print("No new codes where found")
+else:
+    print("The following: " + str(len(new_codes))+ " codes where found")
+    for i in new_codes:
+        print(i)
+
+with open('promocodes.json', 'w') as fp:
+    json.dump(results, fp, indent=4, sort_keys=True)
+
+
+
